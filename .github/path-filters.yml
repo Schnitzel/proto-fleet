@@ -47,6 +47,16 @@ antminer_plugin:
   - server/go.sum
   - server/sdk/**
 
+mujina_plugin:
+  - *global
+  - go.work
+  - go.work.sum
+  - just/go-plugin.just
+  - plugin/mujina/**
+  - server/go.mod
+  - server/go.sum
+  - server/sdk/**
+
 proto_plugin:
   - *global
   - go.work

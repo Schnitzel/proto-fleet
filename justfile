@@ -33,14 +33,14 @@ build-plugins-docker: (_build-go-plugins-cross "linux" "arm64" "server/plugins")
 # build plugin binaries for multiple architectures (deployment)
 build-plugins-release: _build-go-plugins-multi-arch _asicrs-build-release
 
-# rebuild a specific plugin for the Docker runtime (linux/arm64): proto, antminer, virtual, or asicrs
+# rebuild a specific plugin for the Docker runtime (linux/arm64): proto, antminer, mujina, virtual, or asicrs
 rebuild-plugin name:
   #!/usr/bin/env bash
   set -euo pipefail
   case "{{name}}" in
-    proto|antminer|virtual|asicrs) ;;
+    proto|antminer|mujina|virtual|asicrs) ;;
     *)
-      echo "Unknown plugin: {{name}}. Valid: proto, antminer, virtual, asicrs" >&2
+      echo "Unknown plugin: {{name}}. Valid: proto, antminer, mujina, virtual, asicrs" >&2
       exit 1
       ;;
   esac
@@ -48,7 +48,7 @@ rebuild-plugin name:
   # present and built for linux/arm64 before force-rebuilding the named one.
   just build-plugins-docker
   case "{{name}}" in
-    proto|antminer)
+    proto|antminer|mujina)
       (cd plugin/{{name}} && GOOS=linux GOARCH=arm64 go build -o ../../server/plugins/{{name}}-plugin .)
       chmod +x server/plugins/{{name}}-plugin
       ;;
@@ -101,6 +101,7 @@ test-contract: _asicrs-build
       mkdir -p server/plugins && \
       (cd plugin/proto && go build -o ../../server/plugins/proto-plugin .) && \
       (cd plugin/antminer && go build -o ../../server/plugins/antminer-plugin .) && \
+      (cd plugin/mujina && go build -o ../../server/plugins/mujina-plugin .) && \
       (cd tests/plugin-contract && go test -c -o bin/miners.test ./miners/)
     '
 
@@ -159,6 +160,8 @@ update-go-deps:
   (cd plugin/proto && go get -u ./... && go mod tidy)
   echo "Updating plugin/antminer dependencies..."
   (cd plugin/antminer && go get -u ./... && go mod tidy)
+  echo "Updating plugin/mujina dependencies..."
+  (cd plugin/mujina && go get -u ./... && go mod tidy)
   echo "Updating plugin/virtual dependencies..."
   (cd plugin/virtual && go get -u ./... && go mod tidy)
   echo "Updating server/fake-proto-rig dependencies..."
@@ -217,6 +220,7 @@ _lint-plugins:
   set -euo pipefail
   (cd plugin/proto && golangci-lint run -c .golangci.yaml)
   (cd plugin/antminer && golangci-lint run -c .golangci.yaml)
+  (cd plugin/mujina && golangci-lint run -c .golangci.yaml)
 
 [working-directory: 'server']
 _format-server:
@@ -231,6 +235,7 @@ _format-plugins:
   set -euo pipefail
   (cd plugin/proto && goimports -w .)
   (cd plugin/antminer && goimports -w .)
+  (cd plugin/mujina && goimports -w .)
 
 _gen-protos:
   PATH="$(pwd)/client/node_modules/.bin:$PATH" buf generate
@@ -265,15 +270,17 @@ _build-go-plugins-native outdir: _go-work-sync
   #!/usr/bin/env bash
   set -euo pipefail
   # Plugins import from ../../server, so server module files also affect the graph.
-  SOURCES="plugin/proto plugin/antminer server/sdk/v1 go.work go.work.sum server/go.mod server/go.sum plugin/proto/go.mod plugin/proto/go.sum plugin/antminer/go.mod plugin/antminer/go.sum"
+  SOURCES="plugin/proto plugin/antminer plugin/mujina server/sdk/v1 go.work go.work.sum server/go.mod server/go.sum plugin/proto/go.mod plugin/proto/go.sum plugin/antminer/go.mod plugin/antminer/go.sum plugin/mujina/go.mod plugin/mujina/go.sum"
   PROTO_BIN={{outdir}}/proto-plugin
   ANT_BIN={{outdir}}/antminer-plugin
+  MUJ_BIN={{outdir}}/mujina-plugin
   PLATFORM_MARKER={{outdir}}/.go-plugins-platform
   WANT_PLATFORM="native"
-  if [ -f "$PROTO_BIN" ] && [ -f "$ANT_BIN" ] \
+  if [ -f "$PROTO_BIN" ] && [ -f "$ANT_BIN" ] && [ -f "$MUJ_BIN" ] \
      && [ -f "$PLATFORM_MARKER" ] && [ "$(cat "$PLATFORM_MARKER")" = "$WANT_PLATFORM" ] \
      && [ -z "$(find $SOURCES -newer "$PROTO_BIN" -type f 2>/dev/null | head -1)" ] \
-     && [ -z "$(find $SOURCES -newer "$ANT_BIN" -type f 2>/dev/null | head -1)" ]; then
+     && [ -z "$(find $SOURCES -newer "$ANT_BIN" -type f 2>/dev/null | head -1)" ] \
+     && [ -z "$(find $SOURCES -newer "$MUJ_BIN" -type f 2>/dev/null | head -1)" ]; then
     echo "Go plugins up to date, skipping build."
     exit 0
   fi
@@ -281,22 +288,25 @@ _build-go-plugins-native outdir: _go-work-sync
   mkdir -p {{outdir}}
   (cd plugin/proto && go build -o ../../{{outdir}}/proto-plugin .)
   (cd plugin/antminer && go build -o ../../{{outdir}}/antminer-plugin .)
-  chmod +x {{outdir}}/proto-plugin {{outdir}}/antminer-plugin
+  (cd plugin/mujina && go build -o ../../{{outdir}}/mujina-plugin .)
+  chmod +x {{outdir}}/proto-plugin {{outdir}}/antminer-plugin {{outdir}}/mujina-plugin
   echo "$WANT_PLATFORM" > "$PLATFORM_MARKER"
 
 _build-go-plugins-cross goos goarch outdir: _go-work-sync
   #!/usr/bin/env bash
   set -euo pipefail
   # Plugins import from ../../server, so server module files also affect the graph.
-  SOURCES="plugin/proto plugin/antminer server/sdk/v1 go.work go.work.sum server/go.mod server/go.sum plugin/proto/go.mod plugin/proto/go.sum plugin/antminer/go.mod plugin/antminer/go.sum"
+  SOURCES="plugin/proto plugin/antminer plugin/mujina server/sdk/v1 go.work go.work.sum server/go.mod server/go.sum plugin/proto/go.mod plugin/proto/go.sum plugin/antminer/go.mod plugin/antminer/go.sum plugin/mujina/go.mod plugin/mujina/go.sum"
   PROTO_BIN={{outdir}}/proto-plugin
   ANT_BIN={{outdir}}/antminer-plugin
+  MUJ_BIN={{outdir}}/mujina-plugin
   PLATFORM_MARKER={{outdir}}/.go-plugins-platform
   WANT_PLATFORM="{{goos}}/{{goarch}}"
-  if [ -f "$PROTO_BIN" ] && [ -f "$ANT_BIN" ] \
+  if [ -f "$PROTO_BIN" ] && [ -f "$ANT_BIN" ] && [ -f "$MUJ_BIN" ] \
      && [ -f "$PLATFORM_MARKER" ] && [ "$(cat "$PLATFORM_MARKER")" = "$WANT_PLATFORM" ] \
      && [ -z "$(find $SOURCES -newer "$PROTO_BIN" -type f 2>/dev/null | head -1)" ] \
-     && [ -z "$(find $SOURCES -newer "$ANT_BIN" -type f 2>/dev/null | head -1)" ]; then
+     && [ -z "$(find $SOURCES -newer "$ANT_BIN" -type f 2>/dev/null | head -1)" ] \
+     && [ -z "$(find $SOURCES -newer "$MUJ_BIN" -type f 2>/dev/null | head -1)" ]; then
     echo "Go plugins up to date for {{goos}}/{{goarch}}, skipping build."
     exit 0
   fi
@@ -304,7 +314,8 @@ _build-go-plugins-cross goos goarch outdir: _go-work-sync
   mkdir -p {{outdir}}
   (cd plugin/proto && GOOS={{goos}} GOARCH={{goarch}} go build -o ../../{{outdir}}/proto-plugin .)
   (cd plugin/antminer && GOOS={{goos}} GOARCH={{goarch}} go build -o ../../{{outdir}}/antminer-plugin .)
-  chmod +x {{outdir}}/proto-plugin {{outdir}}/antminer-plugin
+  (cd plugin/mujina && GOOS={{goos}} GOARCH={{goarch}} go build -o ../../{{outdir}}/mujina-plugin .)
+  chmod +x {{outdir}}/proto-plugin {{outdir}}/antminer-plugin {{outdir}}/mujina-plugin
   echo "$WANT_PLATFORM" > "$PLATFORM_MARKER"
 
 _build-go-plugins-multi-arch: _go-work-sync
@@ -314,8 +325,10 @@ _build-go-plugins-multi-arch: _go-work-sync
   mkdir -p deployment-files/server
   (cd plugin/proto && GOOS=linux GOARCH=amd64 go build -o ../../deployment-files/server/proto-plugin-amd64 .)
   (cd plugin/antminer && GOOS=linux GOARCH=amd64 go build -o ../../deployment-files/server/antminer-plugin-amd64 .)
+  (cd plugin/mujina && GOOS=linux GOARCH=amd64 go build -o ../../deployment-files/server/mujina-plugin-amd64 .)
   (cd plugin/proto && GOOS=linux GOARCH=arm64 go build -o ../../deployment-files/server/proto-plugin-arm64 .)
   (cd plugin/antminer && GOOS=linux GOARCH=arm64 go build -o ../../deployment-files/server/antminer-plugin-arm64 .)
+  (cd plugin/mujina && GOOS=linux GOARCH=arm64 go build -o ../../deployment-files/server/mujina-plugin-arm64 .)
   chmod +x deployment-files/server/*-plugin-*
 
 _asicrs-build:

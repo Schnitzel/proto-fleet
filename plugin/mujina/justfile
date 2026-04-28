@@ -1,0 +1,12 @@
+import '../../just/go-plugin.just'
+
+# list available recipes
+default:
+  just --list
+
+# run all tests
+test:
+  go test ./...
+
+# run linting and tests together
+check: lint test

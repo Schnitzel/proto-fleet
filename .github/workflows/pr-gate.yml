@@ -22,6 +22,7 @@ jobs:
       client: ${{ github.event_name != 'pull_request' || steps.filter.outputs.client == 'true' }}
       server: ${{ github.event_name != 'pull_request' || steps.filter.outputs.server == 'true' }}
       antminer_plugin: ${{ github.event_name != 'pull_request' || steps.filter.outputs.antminer_plugin == 'true' }}
+      mujina_plugin: ${{ github.event_name != 'pull_request' || steps.filter.outputs.mujina_plugin == 'true' }}
       proto_plugin: ${{ github.event_name != 'pull_request' || steps.filter.outputs.proto_plugin == 'true' }}
       virtual_plugin: ${{ github.event_name != 'pull_request' || steps.filter.outputs.virtual_plugin == 'true' }}
       asicrs_plugin: ${{ github.event_name != 'pull_request' || steps.filter.outputs.asicrs_plugin == 'true' }}
@@ -77,6 +78,12 @@ jobs:
     if: needs.changes.outputs.server == 'true'
     uses: ./.github/workflows/protofleet-server-checks.yml
     secrets: inherit
+
+  mujina-plugin-checks:
+    name: Mujina Plugin Checks
+    needs: changes
+    if: needs.changes.outputs.mujina_plugin == 'true'
+    uses: ./.github/workflows/protofleet-mujina-plugin-checks.yml
 
   antminer-plugin-checks:
     name: Antminer Plugin Checks
@@ -173,6 +180,7 @@ jobs:
       - proto-checks
       - client-checks
       - server-checks
+      - mujina-plugin-checks
       - antminer-plugin-checks
       - proto-plugin-checks
       - virtual-plugin-checks

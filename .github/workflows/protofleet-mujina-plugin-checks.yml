@@ -1,0 +1,49 @@
+name: Mujina Plugin Checks
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/protofleet-mujina-plugin-checks.yml"
+      - ".github/actions/go-cache-setup/action.yml"
+      - ".github/actions/hermit-setup/action.yml"
+      - "bin/hermit.hcl"
+      - "hermit-packages/**"
+      - "go.work"
+      - "go.work.sum"
+      - "plugin/mujina/**"
+      - "server/go.mod"
+      - "server/go.sum"
+      - "server/sdk/**"
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  mujina-plugin:
+    name: Mujina Plugin
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: plugin/mujina
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Hermit
+        uses: ./.github/actions/hermit-setup
+
+      - name: Configure Go cache
+        uses: ./.github/actions/go-cache-setup
+
+      - name: Check formatting
+        run: golangci-lint fmt --diff -c .golangci.yaml
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test ./...
