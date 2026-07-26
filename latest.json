@@ -1,10 +1,10 @@
 {
-  "version": "nightly-20260725-592c55917d9e",
-  "tag": "nightly-20260725-592c55917d9e",
+  "version": "nightly-20260726-592c55917d9e",
+  "tag": "nightly-20260726-592c55917d9e",
   "commit": "592c55917d9eff4e0c52d46224712613dac1c9a8",
-  "build_date": "2026-07-25T06:07:37Z",
-  "run_id": "30146961911",
-  "run_number": "89",
+  "build_date": "2026-07-26T06:26:50Z",
+  "run_id": "30191060379",
+  "run_number": "90",
   "run_attempt": "1",
-  "release_url": "https://github.com/Schnitzel/proto-fleet/releases/tag/nightly-20260725-592c55917d9e"
+  "release_url": "https://github.com/Schnitzel/proto-fleet/releases/tag/nightly-20260726-592c55917d9e"
 }
